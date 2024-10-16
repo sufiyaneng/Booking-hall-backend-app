@@ -1,4 +1,4 @@
-import { Todo } from "../model/todo.model.js";
+import { Booking } from "../model/booking.model.js";
 import { User } from "../model/user.model.js";
 import moment from "moment";
 
@@ -16,61 +16,99 @@ const createBooking = async (req, res) => {
       amountPaid,
     } = req.body;
 
+    // Validate required fields
     if (
       !customerName ||
       !address ||
       !phone ||
       !description ||
       !bookingDate ||
-      !bookSession ||
       !eventType ||
       amountPaid === undefined
     ) {
       return res.status(400).json({ error: "All fields are required." });
     }
 
-    // Ensure string fields are not empty after trimming
+    // Trim fields and check if any is empty
     if (
-      [
-        customerName,
-        address,
-        phone,
-        description,
-        bookingDate,
-        bookSession,
-        eventType,
-      ].some((field) => field.trim() === "")
+      [customerName, address, phone, description, eventType].some(
+        (field) => field.trim() === ""
+      )
     ) {
       return res.status(400).json({ error: "No field can be empty." });
     }
-    const checkBookingDate = await Todo.find({
-      bookingDate: new Date(bookingDate),
+
+    // Convert the booking date to start of the day for consistency
+    const startOfBookingDate = new Date(bookingDate);
+    startOfBookingDate.setHours(0, 0, 0, 0);
+    console.log("startOfBookingDate",startOfBookingDate)
+    // Check if any booking exists for the same date
+    const existingBookings = await Booking.find({
+      bookingDate: startOfBookingDate,
     });
 
-    // console.log("checkBookingDate", checkBookingDate);
-    if (checkBookingDate.length > 0) {
-      return res.status(400).json({ error: "Booking date already exists." });
+    let morningBooked = false;
+    let eveningBooked = false;
+
+    // Loop through existing bookings to see if morning or evening sessions are already booked
+    existingBookings.forEach((booking) => {
+      console.log("first",booking)
+      if (booking.bookSession.morning) morningBooked = true;
+      if (booking.bookSession.evening) eveningBooked = true;
+    });
+    
+    // Logic to restrict session booking based on existing bookings
+    if (bookSession.morning && morningBooked) {
+      return res
+        .status(400)
+        .json({
+          message:
+            "Morning session is already booked. Only evening session is available.",
+        });
     }
-    // Create a new Todo associated with the authenticated user
-    const todo = await Todo.create({
-      user: req.user._id, // Associate the Todo with the authenticated user
+
+    if (bookSession.evening && eveningBooked) {
+      return res
+        .status(400)
+        .json({
+          message:
+            "Evening session is already booked. Only morning session is available.",
+        });
+    }
+
+    // If both sessions are already booked for the date
+    if (morningBooked && eveningBooked) {
+      return res
+        .status(400)
+        .json({
+          message:
+            "Both morning and evening sessions are booked for this date.",
+        });
+    }
+
+    // Create a new booking
+    const booking = await Booking.create({
+      user: req.user._id,
       customerName,
       address,
       phone,
       description,
-      completed: completed || false,
-      bookingDate: new Date(bookingDate),
-      bookSession,
+      completed,
+      bookingDate: startOfBookingDate,
+      bookSession: {
+        morning: bookSession.morning || false,
+        evening: bookSession.evening || false,
+      },
       eventType,
       amountPaid,
     });
 
-    return res.status(201).json({ data: todo });
+    return res.status(201).json({ data: booking });
   } catch (error) {
-    console.error("Error creating todo:", error);
+    console.error("Error creating booking:", error);
     res
       .status(500)
-      .json({ error: "An error occurred while creating the todo." });
+      .json({ error: "An error occurred while creating the booking." });
   }
 };
 
@@ -81,7 +119,7 @@ const getCustomerBooking = async (req, res) => {
     if (!user) {
       return res.status(400).json({ error: "user not found." });
     }
-    const booking = await Todo.find({ user: user._id });
+    const booking = await Booking.find({ user: user._id });
     if (!booking.length) {
       return res.status(400).json({ error: "booking not found." });
     }
@@ -104,7 +142,7 @@ const getAllCustomerBooking = async (req, res) => {
       endDate,
       customerName,
       page = 1,
-      limit = 10,
+      limit = 5,
     } = req.query;
     // console.log("all bookings", bookingDate, page, limit);
     let query = {};
@@ -121,7 +159,7 @@ const getAllCustomerBooking = async (req, res) => {
       }
       const startOfDay = date.startOf("day").toDate();
       const endOfDay = date.endOf("day").toDate();
-      console.log("startOfDay, endOfDay",startOfDay, endOfDay)
+      console.log("startOfDay, endOfDay", startOfDay, endOfDay);
       query.bookingDate = {
         $gte: startOfDay,
         $lte: endOfDay,
@@ -145,13 +183,13 @@ const getAllCustomerBooking = async (req, res) => {
     }
     // Calculate skip for pagination
     const skip = (page - 1) * limit;
-    console.log("skip",skip)
-    const allCustomerBooking = await Todo.find(query)?.skip(skip)?.limit(limit);
+    console.log("skip", skip);
+    const allCustomerBooking = await Booking.find(query)?.skip(skip)?.limit(limit);
     if (!allCustomerBooking.length) {
       return res.status(400).json({ error: "booking not found." });
     }
     // Optionally, count total bookings for pagination metadata
-    const totalBookings = await Todo.countDocuments(query);
+    const totalBookings = await Booking.countDocuments(query);
     return res.status(200).json({
       data: allCustomerBooking,
       totalPages: Math.ceil(totalBookings / limit),
@@ -167,9 +205,9 @@ const getAllCustomerBooking = async (req, res) => {
 const deleteBooking = async (req, res) => {
   try {
     const id = req.params.id;
-    const todo = await Todo.findOneAndDelete({ _id: id, user: req?.user?._id });
+    const Booking = await Booking.findOneAndDelete({ _id: id, user: req?.user?._id });
 
-    if (!todo) {
+    if (!Booking) {
       return res.status(404).json({ error: "Booking not found." });
     }
 
@@ -191,7 +229,7 @@ const updateBooking = async (req, res) => {
       return res.status(400).json({ error: "user not found." });
     }
 
-    const updatedBooking = await Todo.findByIdAndUpdate(id, {
+    const updatedBooking = await Booking.findByIdAndUpdate(id, {
       $set: updatedData,
     });
 

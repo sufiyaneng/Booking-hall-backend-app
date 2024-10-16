@@ -67,9 +67,7 @@ const loginUser = async (req, res) => {
   const data = await User.findOne({ email }).select("-password");
 
   const options = {
-    httpOnly: true, // Prevents client-side access to the cookie
-    // secure: process.env.NODE_ENV === "production", // Set to true if using HTTPS
-    sameSite: "Strict", // Helps prevent CSRF attacks
+    secure: process.env.NODE_ENV === "production", // Set to true if using HTTPS
     maxAge: 1 * 60 * 60 * 1000, // Cookie expiry time
   };
 

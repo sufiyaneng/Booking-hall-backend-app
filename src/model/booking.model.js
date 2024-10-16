@@ -1,6 +1,6 @@
 import mongoose, { Schema } from "mongoose";
 
-const todoSchema = new Schema(
+const bookingSchema = new Schema(
   {
     user: {
       type: Schema.Types.ObjectId,
@@ -15,13 +15,13 @@ const todoSchema = new Schema(
       type: String,
       required: true,
     },
-    address:{
-      type:String,
-      required:true
+    address: {
+      type: String,
+      required: true,
     },
-    phone:{
-      type:String,
-      required:true
+    phone: {
+      type: String,
+      required: true,
     },
     completed: {
       type: Boolean,
@@ -32,12 +32,18 @@ const todoSchema = new Schema(
       required: true,
     },
     bookSession: {
-      type: String,
-      enum: ["Morning Session", "Evening Session"],
+      morning: {
+        type: Boolean,
+        default: false,
+      },
+      evening: {
+        type: Boolean,
+        default: false,
+      },
     },
     eventType: {
       type: String,
-      enum: ["Enagagement", "Valima", "Marriage", "Other"],
+      enum: ["Engagement", "Valima", "Marriage", "Other"],
     },
     amountPaid: {
       type: Number,
@@ -50,4 +56,4 @@ const todoSchema = new Schema(
   }
 );
 
-export const Todo = mongoose.model("Todo", todoSchema);
+export const Booking = mongoose.model("Booking", bookingSchema);

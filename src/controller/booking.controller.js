@@ -41,7 +41,7 @@ const createBooking = async (req, res) => {
     // Convert the booking date to start of the day for consistency
     const startOfBookingDate = new Date(bookingDate);
     startOfBookingDate.setHours(0, 0, 0, 0);
-    console.log("startOfBookingDate",startOfBookingDate)
+    console.log("startOfBookingDate", startOfBookingDate);
     // Check if any booking exists for the same date
     const existingBookings = await Booking.find({
       bookingDate: startOfBookingDate,
@@ -52,38 +52,31 @@ const createBooking = async (req, res) => {
 
     // Loop through existing bookings to see if morning or evening sessions are already booked
     existingBookings.forEach((booking) => {
-      console.log("first",booking)
+      console.log("first", booking);
       if (booking.bookSession.morning) morningBooked = true;
       if (booking.bookSession.evening) eveningBooked = true;
     });
-    
+
     // Logic to restrict session booking based on existing bookings
     if (bookSession.morning && morningBooked) {
-      return res
-        .status(400)
-        .json({
-          message:
-            "Morning session is already booked. Only evening session is available.",
-        });
+      return res.status(400).json({
+        message:
+          "Morning session is already booked. Only evening session is available.",
+      });
     }
 
     if (bookSession.evening && eveningBooked) {
-      return res
-        .status(400)
-        .json({
-          message:
-            "Evening session is already booked. Only morning session is available.",
-        });
+      return res.status(400).json({
+        message:
+          "Evening session is already booked. Only morning session is available.",
+      });
     }
 
     // If both sessions are already booked for the date
     if (morningBooked && eveningBooked) {
-      return res
-        .status(400)
-        .json({
-          message:
-            "Both morning and evening sessions are booked for this date.",
-        });
+      return res.status(400).json({
+        message: "Both morning and evening sessions are booked for this date.",
+      });
     }
 
     // Create a new booking
@@ -133,6 +126,20 @@ const getCustomerBooking = async (req, res) => {
   }
 };
 
+const getAllCustomerInCalendar = async(req, res)=>{
+  try {
+    const user = await Booking.find()
+    if(!user){
+      return res.status(400).json({ error: "Invalid bookingDate format." });
+    }
+    return res
+        .status(200)
+        .json({ data: user, message: "booking fetched successfully" });
+  } catch (error) {
+    console.log('first',error)
+  }
+}
+
 const getAllCustomerBooking = async (req, res) => {
   // localhost/getAllcustomerBooking?customerName=""&bookingDate=""&limit=30&page:2
   try {
@@ -146,7 +153,6 @@ const getAllCustomerBooking = async (req, res) => {
     } = req.query;
     // console.log("all bookings", bookingDate, page, limit);
     let query = {};
-    console.log("query", query);
     if (customerName) {
       query.customerName = customerName;
     }
@@ -159,7 +165,6 @@ const getAllCustomerBooking = async (req, res) => {
       }
       const startOfDay = date.startOf("day").toDate();
       const endOfDay = date.endOf("day").toDate();
-      console.log("startOfDay, endOfDay", startOfDay, endOfDay);
       query.bookingDate = {
         $gte: startOfDay,
         $lte: endOfDay,
@@ -183,8 +188,9 @@ const getAllCustomerBooking = async (req, res) => {
     }
     // Calculate skip for pagination
     const skip = (page - 1) * limit;
-    console.log("skip", skip);
-    const allCustomerBooking = await Booking.find(query)?.skip(skip)?.limit(limit);
+    const allCustomerBooking = await Booking.find(query)
+      ?.skip(skip)
+      ?.limit(limit);
     if (!allCustomerBooking.length) {
       return res.status(400).json({ error: "booking not found." });
     }
@@ -205,7 +211,10 @@ const getAllCustomerBooking = async (req, res) => {
 const deleteBooking = async (req, res) => {
   try {
     const id = req.params.id;
-    const Booking = await Booking.findOneAndDelete({ _id: id, user: req?.user?._id });
+    const Booking = await Booking.findOneAndDelete({
+      _id: id,
+      user: req?.user?._id,
+    });
 
     if (!Booking) {
       return res.status(404).json({ error: "Booking not found." });
@@ -250,4 +259,5 @@ export {
   deleteBooking,
   updateBooking,
   getAllCustomerBooking,
+  getAllCustomerInCalendar
 };

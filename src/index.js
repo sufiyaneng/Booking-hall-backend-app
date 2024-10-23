@@ -13,17 +13,30 @@ const corsOptions = {
   credentials: true,
   methods: 'GET,POST,PUT,DELETE',
 };
+app.get('/test',(req,res)=>{
+  res.json({message:'Server is Running..!'})
+})
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cors(corsOptions));
 app.use(cookieParser());
 
+// mongoose
+//   .connect(`${process.env.MONGO_URI}/${process.env.DB_NAME}`)
+//   .then((db) =>
+//     console.log(`Connected!`, db.connection.name, db.connection.host)
+//   )
+//   .catch((err) => console.error(err));
 mongoose
-  .connect(`${process.env.MONGO_URI}/${process.env.DB_NAME}`)
-  .then((db) =>
-    console.log(`Connected!`, db.connection.name, db.connection.host)
-  )
-  .catch((err) => console.error(err));
+  .connect(`${process.env.MONGO_URI}/${process.env.DB_NAME}`, { useNewUrlParser: true, useUnifiedTopology: true })
+  .then((db) => {
+    console.log(`Connected to MongoDB: ${db.connection.host}`);
+  })
+  .catch((err) => {
+    console.error('MongoDB connection error:', err);
+  });
+
 
 app.use("/api/v1/", userRoute);
 app.use("/api/v1/", bookingRoute);

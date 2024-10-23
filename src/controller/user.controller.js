@@ -41,46 +41,68 @@ const signupUser = async (req, res) => {
   }
 };
 
+
 const loginUser = async (req, res) => {
-  const { email, password } = req.body;
-  // console.log("body",req.body)
-  if (!email || !password) {
-    return res
-      .status(400)
-      .json({ status: false, message: "username and password are required!!" });
+  try {
+    const { email, password } = req.body;
+
+    // Check if both email and password are provided
+    if (!email || !password) {
+      return res.status(400).json({
+        status: false,
+        message: "Email and password are required!",
+      });
+    }
+
+    // Find the user by email
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(400).json({
+        status: false,
+        message: "User not found!",
+      });
+    }
+
+    // Compare the provided password with the stored hashed password
+    const isPasswordCorrect = await bcrypt.compare(password, user.password);
+    if (!isPasswordCorrect) {
+      return res.status(400).json({
+        status: false,
+        message: "Incorrect password!",
+      });
+    }
+
+    // Exclude the password from the returned user data
+    const userData = await User.findOne({ email }).select("-password");
+
+    // Generate a JWT token
+    const token = generateToken(user._id);
+
+    // Define cookie options (secure: true in production)
+    const options = {
+      secure: process.env.NODE_ENV === "production",
+      httpOnly: true, // Makes the cookie accessible only through HTTP(S), not JavaScript
+      maxAge: 1 * 60 * 60 * 1000, // 1 hour in milliseconds
+    };
+
+    // Set the token as a cookie and return the response
+    res
+      .cookie("token", token, options)
+      .status(200)
+      .json({
+        status: true,
+        data: userData,
+        token,
+        message: "User logged in successfully.",
+      });
+  } catch (error) {
+    console.error("Error during user login:", error);
+    return res.status(500).json({
+      status: false,
+      message: "Internal server error. Please try again later.",
+    });
   }
-
-  const user = await User.findOne({ email });
-  // console.log("user", user);
-  if (!user) {
-    return res.status(400).json({ status: false, message: "user not found!!" });
-  }
-
-  const pass = await bcrypt.compare(password, user.password);
-
-  if (!pass) {
-    return res
-      .status(400)
-      .json({ status: false, message: "password is incorrect!!" });
-  }
-
-  const data = await User.findOne({ email }).select("-password");
-
-  const options = {
-    secure: process.env.NODE_ENV === "production", // Set to true if using HTTPS
-    maxAge: 1 * 60 * 60 * 1000, // Cookie expiry time
-  };
-
-  const token = generateToken(user?._id);
-
-  // return res
-  //   .status(200)
-  //   .cookie("token",token,options)
-  //   .json({ status: false, data: data,token:token, message: "user login successfully." });
-  res.cookie("token", token, options).status(200).json({
-    status: true,
-    message: "User logged in successfully.",
-  });
 };
+
 
 export { signupUser, loginUser };

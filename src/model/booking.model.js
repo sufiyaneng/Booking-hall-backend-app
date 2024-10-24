@@ -32,15 +32,20 @@ const bookingSchema = new Schema(
       required: true,
     },
     bookSession: {
-      morning: {
-        type: Boolean,
-        default: false,
-      },
-      evening: {
-        type: Boolean,
-        default: false,
-      },
+      type: String,
+      enum: ["Morning", "Evening", "Full Day"],
+      required: true, // Make it required to enforce a selection
     },
+    // bookSession: {
+    //   morning: {
+    //     type: Boolean,
+    //     default: false,
+    //   },
+    //   evening: {
+    //     type: Boolean,
+    //     default: false,
+    //   },
+    // },
     eventType: {
       type: String,
       enum: ["Engagement", "Valima", "Marriage", "Other"],

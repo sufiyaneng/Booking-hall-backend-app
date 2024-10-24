@@ -8,26 +8,19 @@ import bookingRoute from "./routes/booking.route.js";
 
 const app = express();
 dotenv.config();
-const corsOptions = {
-  origin: 'http://localhost:3000', 
-  credentials: true,
-  methods: 'GET,POST,PUT,DELETE',
-};
-app.get('/test',(req,res)=>{
-  res.json({message:'Server is Running..!'})
-})
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(cors(corsOptions));
+// app.use(cors());
+app.use(cors({
+  origin: 'https://synkerhub.com', // replace with your front-end origin
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true // if you need to include credentials
+}));
 app.use(cookieParser());
 
-// mongoose
-//   .connect(`${process.env.MONGO_URI}/${process.env.DB_NAME}`)
-//   .then((db) =>
-//     console.log(`Connected!`, db.connection.name, db.connection.host)
-//   )
-//   .catch((err) => console.error(err));
+
 mongoose
   .connect(`${process.env.MONGO_URI}/${process.env.DB_NAME}`, { useNewUrlParser: true, useUnifiedTopology: true })
   .then((db) => {

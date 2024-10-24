@@ -2,16 +2,117 @@ import { Booking } from "../model/booking.model.js";
 import { User } from "../model/user.model.js";
 import moment from "moment";
 
+// const createBooking = async (req, res) => {
+//   try {
+//     const {
+//       customerName,
+//       address,
+//       phone,
+//       description,
+//       completed = false,
+//       bookingDate,
+//       bookSession,
+//       eventType,
+//       amountPaid,
+//     } = req.body;
+
+//     // Validate required fields
+//     if (
+//       !customerName ||
+//       !address ||
+//       !phone ||
+//       !description ||
+//       !bookingDate ||
+//       !eventType ||
+//       amountPaid === undefined
+//     ) {
+//       return res.status(400).json({ error: "All fields are required." });
+//     }
+
+//     // Trim fields and check if any is empty
+//     if (
+//       [customerName, address, phone, description, eventType].some(
+//         (field) => field.trim() === ""
+//       )
+//     ) {
+//       return res.status(400).json({ error: "No field can be empty." });
+//     }
+
+//     // Convert the booking date to start of the day for consistency
+//     const startOfBookingDate = new Date(bookingDate);
+//     startOfBookingDate.setHours(0, 0, 0, 0);
+//     // Check if any booking exists for the same date
+//     const existingBookings = await Booking.find({
+//       bookingDate: startOfBookingDate,
+//     });
+
+//     let morningBooked = false;
+//     let eveningBooked = false;
+
+//     // Loop through existing bookings to see if morning or evening sessions are already booked
+//     existingBookings.forEach((booking) => {
+//       if (booking.bookSession.morning) morningBooked = true;
+//       if (booking.bookSession.evening) eveningBooked = true;
+//     });
+
+//     // Logic to restrict session booking based on existing bookings
+//     if (bookSession.morning && morningBooked) {
+//       return res.status(400).json({
+//         message:
+//           "Morning session is already booked. Only evening session is available.",
+//       });
+//     }
+
+//     if (bookSession.evening && eveningBooked) {
+//       return res.status(400).json({
+//         message:
+//           "Evening session is already booked. Only morning session is available.",
+//       });
+//     }
+
+//     // If both sessions are already booked for the date
+//     if (morningBooked && eveningBooked) {
+//       return res.status(400).json({
+//         message: "Both morning and evening sessions are booked for this date.",
+//       });
+//     }
+
+//     // Create a new booking
+//     const booking = await Booking.create({
+//       user: req.user._id,
+//       customerName,
+//       address,
+//       phone,
+//       description,
+//       completed,
+//       bookingDate: startOfBookingDate,
+//       bookSession: {
+//         morning: bookSession.morning || false,
+//         evening: bookSession.evening || false,
+//       },
+//       eventType,
+//       amountPaid,
+//     });
+
+//     return res.status(201).json({ data: booking });
+//   } catch (error) {
+//     console.error("Error creating booking:", error);
+//     res
+//       .status(500)
+//       .json({ error: "An error occurred while creating the booking." });
+//   }
+// };
+
 const createBooking = async (req, res) => {
   try {
     const {
+      user,
       customerName,
+      description,
       address,
       phone,
-      description,
-      completed = false,
       bookingDate,
-      bookSession,
+      bookSession, // Expecting bookSession to be a string ("Morning", "Evening", "Full Day")
       eventType,
       amountPaid,
     } = req.body;
@@ -29,82 +130,69 @@ const createBooking = async (req, res) => {
       return res.status(400).json({ error: "All fields are required." });
     }
 
-    // Trim fields and check if any is empty
-    if (
-      [customerName, address, phone, description, eventType].some(
-        (field) => field.trim() === ""
-      )
-    ) {
-      return res.status(400).json({ error: "No field can be empty." });
-    }
-
     // Convert the booking date to start of the day for consistency
     const startOfBookingDate = new Date(bookingDate);
     startOfBookingDate.setHours(0, 0, 0, 0);
-    console.log("startOfBookingDate", startOfBookingDate);
-    // Check if any booking exists for the same date
-    const existingBookings = await Booking.find({
-      bookingDate: startOfBookingDate,
-    });
 
-    let morningBooked = false;
-    let eveningBooked = false;
+    let existingBookings = await Booking.find({bookingDate: startOfBookingDate});
 
-    // Loop through existing bookings to see if morning or evening sessions are already booked
-    existingBookings.forEach((booking) => {
-      console.log("first", booking);
-      if (booking.bookSession.morning) morningBooked = true;
-      if (booking.bookSession.evening) eveningBooked = true;
-    });
+    if (existingBookings.length > 0) {
+      if (bookSession === "Full Day") {
+          return res.status(400).json({ message: `Can not book for entire day as ${bookSession} session has been booked.` });
+      } else {
+        const hasSessionedBookings = existingBookings.some(booking => booking.bookSession == bookSession);
+  
+        if (hasSessionedBookings) {
+          return res.status(400).json({ message: `Already booked for ${bookSession} session. Please try other session ....!`});
+        }
+        
+        const hasFullDayBooking = existingBookings.some(booking => booking.bookSession == "Full Day");
 
-    // Logic to restrict session booking based on existing bookings
-    if (bookSession.morning && morningBooked) {
-      return res.status(400).json({
-        message:
-          "Morning session is already booked. Only evening session is available.",
-      });
-    }
-
-    if (bookSession.evening && eveningBooked) {
-      return res.status(400).json({
-        message:
-          "Evening session is already booked. Only morning session is available.",
-      });
-    }
-
-    // If both sessions are already booked for the date
-    if (morningBooked && eveningBooked) {
-      return res.status(400).json({
-        message: "Both morning and evening sessions are booked for this date.",
-      });
+        if (hasFullDayBooking) {
+          return res.status(400).json({ message: `Can not book for ${bookSession} session as full day has been booked.`});
+        }
+      }
     }
 
     // Create a new booking
-    const booking = await Booking.create({
-      user: req.user._id,
+    const newBooking = new Booking({
+      user,
       customerName,
+      description,
       address,
       phone,
-      description,
-      completed,
       bookingDate: startOfBookingDate,
-      bookSession: {
-        morning: bookSession.morning || false,
-        evening: bookSession.evening || false,
-      },
+      bookSession, // Use the bookSession string directly
       eventType,
       amountPaid,
     });
 
-    return res.status(201).json({ data: booking });
+    const savedBooking = await newBooking.save();
+
+    // Format the response with session name
+    return res.status(201).json({
+      data: {
+        user: savedBooking.user,
+        customerName: savedBooking.customerName,
+        description: savedBooking.description,
+        address: savedBooking.address,
+        phone: savedBooking.phone,
+        completed: savedBooking.completed,
+        bookingDate: savedBooking.bookingDate,
+        bookSession: savedBooking.bookSession, // Session name as string: "Morning", "Evening", or "Full Day"
+        eventType: savedBooking.eventType,
+        amountPaid: savedBooking.amountPaid,
+        _id: savedBooking._id,
+        createdAt: savedBooking.createdAt,
+        updatedAt: savedBooking.updatedAt,
+        __v: savedBooking.__v,
+      },
+    });
   } catch (error) {
     console.error("Error creating booking:", error);
-    res
-      .status(500)
-      .json({ error: "An error occurred while creating the booking." });
+    return res.status(500).json({ message: "Error creating booking", error });
   }
 };
-
 const getCustomerBooking = async (req, res) => {
   try {
     const user = await User.findById(req.user._id);
@@ -126,19 +214,19 @@ const getCustomerBooking = async (req, res) => {
   }
 };
 
-const getAllCustomerInCalendar = async(req, res)=>{
+const getAllCustomerInCalendar = async (req, res) => {
   try {
-    const user = await Booking.find()
-    if(!user){
+    const user = await Booking.find();
+    if (!user) {
       return res.status(400).json({ error: "Invalid bookingDate format." });
     }
     return res
-        .status(200)
-        .json({ data: user, message: "booking fetched successfully" });
+      .status(200)
+      .json({ data: user, message: "booking fetched successfully" });
   } catch (error) {
-    console.log('first',error)
+    console.log("Get all customers error", error);
   }
-}
+};
 
 const getAllCustomerBooking = async (req, res) => {
   // localhost/getAllcustomerBooking?customerName=""&bookingDate=""&limit=30&page:2
@@ -259,5 +347,5 @@ export {
   deleteBooking,
   updateBooking,
   getAllCustomerBooking,
-  getAllCustomerInCalendar
+  getAllCustomerInCalendar,
 };
